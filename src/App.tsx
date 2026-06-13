@@ -11,6 +11,8 @@ import {
   Layers, Bookmark, List, RefreshCw, AlertCircle, Trash2, TrendingUp
 } from "lucide-react";
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://rise-6tca.onrender.com";
+
 export default function App() {
   // Input states
   const [budget, setBudget] = useState("");
@@ -87,21 +89,24 @@ export default function App() {
     setLoading(true);
     setError(null);
 
+    const count = parseInt(ideaCount) || 5;
+
     try {
-      const response = await fetch("/api/generate-ideas", {
+      const response = await fetch(`${backendUrl}/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          budget: budget.trim(),
-          location: location.trim(),
-          interest: interest.trim(),
-          ideaCount: parseInt(ideaCount) || 5,
-        }),
+          budget,
+          location,
+          interest,
+          count
+        })
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Failed to make research server connection.");
+        throw new Error("Failed to generate ideas");
       }
 
       const data = await response.json();
@@ -134,7 +139,7 @@ export default function App() {
       idea.name.toLowerCase().includes(query) ||
       idea.category.toLowerCase().includes(query) ||
       idea.startupCost.toLowerCase().includes(query) ||
-      idea.whyWorks.toLowerCase().includes(query)
+      idea.whyItWorks.toLowerCase().includes(query)
     );
   });
 

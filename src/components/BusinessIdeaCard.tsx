@@ -39,12 +39,12 @@ export default function BusinessIdeaCard({
 Business Idea: ${idea.name}
 Category: ${idea.category}
 Estimated Startup Cost: ${idea.startupCost}
-Expected Monthly Profit: ${idea.expectedProfit}
+Expected Monthly Profit: ${idea.monthlyProfit}
 Risk Level: ${idea.riskLevel}
-Feasibility Score: ${idea.feasibilityScore}/100
+Feasibility Score: ${idea.score}/100
 
 Why it works:
-${idea.whyWorks}
+${idea.whyItWorks}
 
 Execution Action Steps:
 ${idea.firstSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
@@ -71,7 +71,7 @@ ${idea.firstSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
             {idea.riskLevel} Risk
           </span>
           <div className="text-right">
-            <span className="text-2xl font-black tracking-tight text-white">{idea.feasibilityScore}</span>
+            <span className="text-2xl font-black tracking-tight text-white">{idea.score}</span>
             <span className="text-xs text-gray-500 font-bold">/100</span>
           </div>
         </div>
@@ -88,7 +88,7 @@ ${idea.firstSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
 
         {/* Short description / validation */}
         <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-          {idea.whyWorks}
+          {idea.whyItWorks}
         </p>
 
         {/* Cost & Profit Grid inside card */}
@@ -99,7 +99,7 @@ ${idea.firstSteps.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
           </div>
           <div className="bg-black/20 p-3 rounded-lg border border-white/5">
             <div className="text-gray-500 uppercase font-bold text-[9px] tracking-widest">Net Profit Est.</div>
-            <div className="text-sm font-bold text-green-400 font-mono mt-0.5">{idea.expectedProfit}</div>
+            <div className="text-sm font-bold text-green-400 font-mono mt-0.5">{idea.monthlyProfit}</div>
           </div>
         </div>
 

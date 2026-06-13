@@ -3,24 +3,24 @@ export interface BusinessIdea {
   name: string;
   category: string;
   startupCost: string;
-  expectedProfit: string;
+  monthlyProfit: string;
   riskLevel: "Low" | "Medium" | "High";
-  feasibilityScore: number;
-  whyWorks: string;
+  score: number;
+  whyItWorks: string;
   firstSteps: string[];
   isSample?: boolean;
 }
 
 export interface BusinessPlan {
-  businessOverview: string;
+  overview: string;
   targetCustomers: string;
-  startupCostBreakdown: string;
-  requiredEquipment: string;
+  startupCostBreakdown: string[];
+  equipment: string[];
   pricingStrategy: string;
-  marketingStrategy: string[];
-  monthlyRevenueEstimate: string;
-  monthlyExpenseEstimate: string;
+  marketingStrategy: string;
+  monthlyRevenue: string;
+  monthlyExpenses: string;
   expectedProfit: string;
-  riskFactors: string;
-  first30DayActionPlan: string[];
+  risks: string[];
+  first30Days: string[];
 }

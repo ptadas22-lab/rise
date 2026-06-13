@@ -7,6 +7,8 @@ import {
   Bookmark, BookmarkCheck, Copy, Check
 } from "lucide-react";
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://rise-6tca.onrender.com";
+
 interface BusinessPlanModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -100,21 +102,20 @@ export default function BusinessPlanModal({
       console.error("Error reading saved plan:", e);
     }
 
-    // 2. Query Gemini API
+    // 2. Query Backend API
     try {
-      const response = await fetch("/api/generate-plan", {
+      const response = await fetch(`${backendUrl}/plan`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          ideaName: idea.name,
-          category: idea.category,
-          budget: budget || idea.startupCost,
-          location: location || "India"
-        }),
+          idea
+        })
       });
 
       if (!response.ok) {
-        throw new Error("API call failed");
+        throw new Error("Failed to generate plan");
       }
 
       const resData = await response.json();
@@ -125,7 +126,7 @@ export default function BusinessPlanModal({
       }
     } catch (err: any) {
       console.error(err);
-      setError("Unable to generate plan. Please try again.");
+      setError(err.message || "Unable to generate plan. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -155,37 +156,37 @@ Target Location: ${location || "India"}
 
 =========================================
 1. BUSINESS OVERVIEW
-${plan.businessOverview}
+${plan.overview}
 
 2. TARGET CUSTOMERS
 ${plan.targetCustomers}
 
 3. STARTUP COST BREAKDOWN
-${plan.startupCostBreakdown}
+${Array.isArray(plan.startupCostBreakdown) ? plan.startupCostBreakdown.join("\n") : plan.startupCostBreakdown}
 
 4. REQUIRED EQUIPMENT / RESOURCES
-${plan.requiredEquipment}
+${Array.isArray(plan.equipment) ? plan.equipment.join("\n") : plan.equipment}
 
 5. PRICING STRATEGY
 ${plan.pricingStrategy}
 
 6. MARKETING STRATEGY
-${plan.marketingStrategy.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
+${Array.isArray(plan.marketingStrategy) ? plan.marketingStrategy.map((step, idx) => `${idx + 1}. ${step}`).join("\n") : plan.marketingStrategy}
 
 7. MONTHLY REVENUE ESTIMATE
-${plan.monthlyRevenueEstimate}
+${plan.monthlyRevenue}
 
 8. MONTHLY EXPENSE ESTIMATE
-${plan.monthlyExpenseEstimate}
+${plan.monthlyExpenses}
 
 9. EXPECTED PROFIT
 ${plan.expectedProfit}
 
 10. RISK FACTORS
-${plan.riskFactors}
+${Array.isArray(plan.risks) ? plan.risks.join("\n") : plan.risks}
 
 11. FIRST 30-DAY ACTION PLAN
-${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")}
+${Array.isArray(plan.first30Days) ? plan.first30Days.map((step, idx) => `${idx + 1}. ${step}`).join("\n") : plan.first30Days}
     `.trim();
 
     navigator.clipboard.writeText(textToCopy)
@@ -275,7 +276,7 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   <h4 className="font-bold text-white uppercase tracking-tight text-sm">Business Overview</h4>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed font-medium whitespace-pre-line">
-                  {plan.businessOverview}
+                  {plan.overview}
                 </p>
               </div>
 
@@ -300,9 +301,17 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   </span>
                   <h4 className="font-bold text-white uppercase tracking-tight text-sm">Startup Cost Breakdown</h4>
                 </div>
-                <p className="text-xs text-gray-300 leading-relaxed font-medium whitespace-pre-line">
-                  {plan.startupCostBreakdown}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed font-medium">
+                  {Array.isArray(plan.startupCostBreakdown) ? (
+                    <ul className="list-disc pl-4 space-y-1.5">
+                      {plan.startupCostBreakdown.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="whitespace-pre-line">{plan.startupCostBreakdown}</p>
+                  )}
+                </div>
               </div>
 
               {/* Section 4: Required Equipment */}
@@ -313,9 +322,17 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   </span>
                   <h4 className="font-bold text-white uppercase tracking-tight text-sm">Required Equipment &amp; Resources</h4>
                 </div>
-                <p className="text-xs text-gray-300 leading-relaxed font-medium whitespace-pre-line">
-                  {plan.requiredEquipment}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed font-medium">
+                  {Array.isArray(plan.equipment) ? (
+                    <ul className="list-disc pl-4 space-y-1.5">
+                      {plan.equipment.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="whitespace-pre-line">{plan.equipment}</p>
+                  )}
+                </div>
               </div>
 
               {/* Section 5: Pricing Strategy */}
@@ -339,14 +356,20 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   </span>
                   <h4 className="font-bold text-white uppercase tracking-tight text-sm">Marketing Strategy</h4>
                 </div>
-                <ul className="space-y-2.5">
-                  {plan.marketingStrategy.map((step, idx) => (
-                    <li key={idx} className="flex gap-2.5 items-start text-xs text-gray-300 font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="text-xs text-gray-300 font-medium">
+                  {Array.isArray(plan.marketingStrategy) ? (
+                    <ul className="space-y-2.5">
+                      {plan.marketingStrategy.map((step, idx) => (
+                        <li key={idx} className="flex gap-2.5 items-start">
+                          <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="whitespace-pre-line">{plan.marketingStrategy}</p>
+                  )}
+                </div>
               </div>
 
               {/* Section 7: Monthly Revenue Estimate */}
@@ -355,10 +378,10 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   <span className="p-1.5 rounded-lg bg-teal-500/10 border border-white/5">
                     <TrendingUp className="w-4 h-4" />
                   </span>
-                  <h4 className="font-bold text-white uppercase tracking-tight text-sm">Monthly Revenue Estimate</h4>
+                  <h4 className="font-bold text-white uppercase tracking-tight text-sm">Monthly Revenue</h4>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed font-medium whitespace-pre-line">
-                  {plan.monthlyRevenueEstimate}
+                  {plan.monthlyRevenue}
                 </p>
               </div>
 
@@ -368,10 +391,10 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   <span className="p-1.5 rounded-lg bg-orange-500/10 border border-white/5">
                     <TrendingDown className="w-4 h-4" />
                   </span>
-                  <h4 className="font-bold text-white uppercase tracking-tight text-sm">Monthly Expense Estimate</h4>
+                  <h4 className="font-bold text-white uppercase tracking-tight text-sm">Monthly Expenses</h4>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed font-medium whitespace-pre-line">
-                  {plan.monthlyExpenseEstimate}
+                  {plan.monthlyExpenses}
                 </p>
               </div>
 
@@ -396,9 +419,17 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   </span>
                   <h4 className="font-bold text-white uppercase tracking-tight text-sm">Risk Factors</h4>
                 </div>
-                <p className="text-xs text-gray-300 leading-relaxed font-medium whitespace-pre-line">
-                  {plan.riskFactors}
-                </p>
+                <div className="text-xs text-gray-300 leading-relaxed font-medium">
+                  {Array.isArray(plan.risks) ? (
+                    <ul className="list-disc pl-4 space-y-1.5">
+                      {plan.risks.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="whitespace-pre-line">{plan.risks}</p>
+                  )}
+                </div>
               </div>
 
               {/* Section 11: First 30-Day Action Plan */}
@@ -410,14 +441,20 @@ ${plan.first30DayActionPlan.map((step, idx) => `${idx + 1}. ${step}`).join("\n")
                   <h4 className="font-bold text-white uppercase tracking-tight text-sm">First 30-Day Action Plan</h4>
                 </div>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  {plan.first30DayActionPlan.map((step, idx) => (
-                    <li key={idx} className="flex gap-2.5 items-start text-xs text-gray-300 font-medium p-3 rounded-xl bg-white/2">
-                      <span className="w-5 h-5 rounded bg-purple-500/15 border border-white/5 text-purple-400 flex items-center justify-center font-mono text-[9px] font-bold shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span>{step}</span>
+                  {Array.isArray(plan.first30Days) ? (
+                    plan.first30Days.map((step, idx) => (
+                      <li key={idx} className="flex gap-2.5 items-start text-xs text-gray-300 font-medium p-3 rounded-xl bg-white/2">
+                        <span className="w-5 h-5 rounded bg-purple-500/15 border border-white/5 text-purple-400 flex items-center justify-center font-mono text-[9px] font-bold shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="flex gap-2.5 items-start text-xs text-gray-300 font-medium p-3 rounded-xl bg-white/2">
+                      <span>{plan.first30Days}</span>
                     </li>
-                  ))}
+                  )}
                 </ul>
               </div>
 
