@@ -68,18 +68,18 @@ async function makeAPIRequest(model, messages, responseFormat, temperature) {
 // POST /generate
 app.post('/generate', async (req, res) => {
   try {
-    const { budget, location, interest, ideaCount } = req.body;
+    const { budget, location, interest, count, ideaCount } = req.body;
 
     if (!budget || !location) {
       return res.status(400).json({ error: 'Budget and Location are required.' });
     }
 
-    const count = parseInt(ideaCount) || 5;
+    const countVal = parseInt(count || ideaCount) || 5;
 
     const systemPrompt = `You are an expert business consultant specialized in startup planning.
 You must return only a valid JSON object matching the requested schema. No conversational filler or markdown formatting outside the JSON block.`;
 
-    const userPrompt = `Generate exactly ${count} highly realistic and profitable business ideas suitable for a budget of "${budget}" in the city/location of "${location}".
+    const userPrompt = `Generate exactly ${countVal} highly realistic and profitable business ideas suitable for a budget of "${budget}" in the city/location of "${location}".
 ${interest ? `Focus on categories related to or matching: "${interest}".` : "Try to provide a diverse selection of matching offline or online business types."}
 
 Target Audience: students, side hustlers, small shop owners, and first-time entrepreneurs. Ensure the ideas represent realistic opportunities in India, showing prices/startup costs in INR (Indian Rupees - ₹).
@@ -138,16 +138,21 @@ Output JSON structure template:
 // POST /plan
 app.post('/plan', async (req, res) => {
   try {
-    const { ideaName, category, budget, location } = req.body;
+    const { idea, ideaName, category, budget, location } = req.body;
 
-    if (!ideaName) {
+    const targetIdeaName = idea ? idea.name : ideaName;
+    const targetCategory = idea ? idea.category : category;
+    const targetBudget = idea ? idea.startupCost : budget;
+    const targetLocation = location || "India";
+
+    if (!targetIdeaName) {
       return res.status(400).json({ error: 'Idea Name is required.' });
     }
 
     const systemPrompt = `You are an expert business planner specialized in detailed startup strategy and planning.
 You must return only a valid JSON object matching the requested schema. No conversational filler or markdown formatting outside the JSON block.`;
 
-    const userPrompt = `Generate a fully comprehensive structural business execution plan for establishing a business called "${ideaName}" (Category: "${category}") with budget constraints of "${budget}" in "${location}".
+    const userPrompt = `Generate a fully comprehensive structural business execution plan for establishing a business called "${targetIdeaName}" (Category: "${targetCategory}") with budget constraints of "${targetBudget}" in "${targetLocation}".
 
 The plan should be highly professional, detailed, and customized to India. Return matching the required JSON schema.
 You MUST return a JSON object with a single key "plan" containing the business plan object. The "plan" object must have exactly these keys:
