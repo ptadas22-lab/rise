@@ -1,0 +1,8 @@
+{
+  "name": "RISE",
+  "description": "RISE helps people rise from ideas to business. Discover realistic business opportunities based on your budget, location, and interests.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
