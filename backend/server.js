@@ -50,7 +50,16 @@ function cleanAndParseJSON(rawText) {
 // POST /generate
 app.post('/generate', async (req, res) => {
   try {
-    const { budget, location, interest, count, ideaCount } = req.body;
+    const { prompt, budget, location, interest, count, ideaCount } = req.body;
+
+    if (prompt) {
+      const rawText = await callMistralAPI(prompt);
+      const cleanText = rawText
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .replace(/\\/g, '\\\\')
+        .trim();
+      return res.json({ success: true, result: cleanText });
+    }
 
     if (!budget || !location) {
       return res.status(400).json({ error: 'Budget and Location are required.' });
@@ -97,9 +106,21 @@ Output JSON structure template:
 }`;
 
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
-    const contentText = await callMistralAPI(promptText);
+    const rawText = await callMistralAPI(promptText);
 
-    const parsedData = cleanAndParseJSON(contentText);
+    const cleanText = rawText
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\\/g, '\\\\')
+      .trim();
+
+    let parsedData;
+    try {
+      parsedData = cleanAndParseJSON(cleanText);
+    } catch (parseErr) {
+      console.warn('Parsing sanitized JSON failed, trying raw text:', parseErr);
+      parsedData = cleanAndParseJSON(rawText);
+    }
+
     if (!parsedData.ideas || !Array.isArray(parsedData.ideas)) {
       throw new Error('Response did not contain an "ideas" array.');
     }
@@ -107,7 +128,7 @@ Output JSON structure template:
     res.json(parsedData);
   } catch (err) {
     console.error('Error in /generate:', err);
-    res.status(500).json({ error: err.message || 'Failed to generate business ideas.' });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -164,7 +185,19 @@ Output JSON structure template:
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
     const contentText = await callMistralAPI(promptText);
 
-    const parsedData = cleanAndParseJSON(contentText);
+    const cleanText = contentText
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\\/g, '\\\\')
+      .trim();
+
+    let parsedData;
+    try {
+      parsedData = cleanAndParseJSON(cleanText);
+    } catch (parseErr) {
+      console.warn('Parsing sanitized JSON failed, trying raw text:', parseErr);
+      parsedData = cleanAndParseJSON(contentText);
+    }
+
     if (!parsedData.plan || typeof parsedData.plan !== 'object') {
       throw new Error('Response did not contain a "plan" object.');
     }
@@ -172,7 +205,7 @@ Output JSON structure template:
     res.json(parsedData);
   } catch (err) {
     console.error('Error in /plan:', err);
-    res.status(500).json({ error: err.message || 'Failed to generate business plan.' });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
