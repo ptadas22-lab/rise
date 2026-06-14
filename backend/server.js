@@ -15,25 +15,28 @@ app.get('/', (req, res) => {
   res.send('RISE backend running');
 });
 
-async function callGeminiAPI(prompt) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY not configured.");
+async function callClaudeAPI(prompt) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured.");
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    }
-  );
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
 
   const data = await response.json();
-  console.log("Gemini raw response:", JSON.stringify(data));
-  if (data.error) throw new Error(`Gemini error: ${data.error.message}`);
-  return data.candidates[0].content.parts[0].text;
+  console.log("Claude raw response:", JSON.stringify(data));
+  if (data.error) throw new Error(`Claude error: ${data.error.message}`);
+  return data.content[0].text;
 }
 
 // Helper function to clean markdown formatting and parse JSON
@@ -95,7 +98,7 @@ Output JSON structure template:
 }`;
 
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
-    const contentText = await callGeminiAPI(promptText);
+    const contentText = await callClaudeAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.ideas || !Array.isArray(parsedData.ideas)) {
@@ -160,7 +163,7 @@ Output JSON structure template:
 }`;
 
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
-    const contentText = await callGeminiAPI(promptText);
+    const contentText = await callClaudeAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.plan || typeof parsedData.plan !== 'object') {
