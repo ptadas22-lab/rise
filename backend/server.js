@@ -15,42 +15,29 @@ app.get('/', (req, res) => {
   res.send('RISE backend running');
 });
 
-// Helper function to query the Hugging Face Inference API
-async function callMistralAPI(promptText) {
-  if (!process.env.HUGGINGFACE_API_KEY) {
-    throw new Error('HUGGINGFACE_API_KEY environment variable is not configured.');
-  }
+async function callHuggingFaceAPI(prompt) {
+  const apiKey = process.env.HUGGINGFACE_API_KEY;
+  if (!apiKey) throw new Error("HUGGINGFACE_API_KEY environment variable is not configured.");
 
-  console.log('Attempting to call Hugging Face Mistral-7B-Instruct-v0.3 API');
   const response = await fetch(
     "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.HUGGINGFACE_API_KEY}`
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        inputs: promptText,
-        parameters: {
-          max_new_tokens: 1500,
-          temperature: 0.7,
-          return_full_text: false
-        }
+        inputs: prompt,
+        parameters: { max_new_tokens: 1000, temperature: 0.7, return_full_text: false },
+        options: { wait_for_model: true }
       })
     }
   );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Hugging Face API returned status ${response.status}: ${errorText}`);
-  }
-
   const data = await response.json();
-  if (!Array.isArray(data) || !data[0] || !data[0].generated_text) {
-    throw new Error('Invalid response layout from Hugging Face API.');
-  }
-
+  console.log("HuggingFace raw response:", JSON.stringify(data));
+  if (data.error) throw new Error(`HuggingFace error: ${data.error}`);
   return data[0].generated_text;
 }
 
@@ -113,7 +100,7 @@ Output JSON structure template:
 }`;
 
     const promptText = `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
-    const contentText = await callMistralAPI(promptText);
+    const contentText = await callHuggingFaceAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.ideas || !Array.isArray(parsedData.ideas)) {
@@ -178,7 +165,7 @@ Output JSON structure template:
 }`;
 
     const promptText = `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
-    const contentText = await callMistralAPI(promptText);
+    const contentText = await callHuggingFaceAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.plan || typeof parsedData.plan !== 'object') {
