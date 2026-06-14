@@ -19,6 +19,8 @@ async function callMistralAPI(prompt) {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error("MISTRAL_API_KEY not configured.");
 
+  const cleanPrompt = prompt + "\n\nIMPORTANT: Respond with pure JSON only. No markdown, no code blocks, no backticks, no explanation. Just raw JSON.";
+
   const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -27,15 +29,19 @@ async function callMistralAPI(prompt) {
     },
     body: JSON.stringify({
       model: "mistral-small-latest",
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: cleanPrompt }],
       max_tokens: 1000
     })
   });
 
   const data = await response.json();
-  console.log("Mistral raw response:", JSON.stringify(data));
-  if (data.error) throw new Error(`Mistral error: ${data.error.message}`);
-  return data.choices[0].message.content;
+  let text = data.choices[0].message.content;
+
+  // Strip markdown code blocks
+  text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+  console.log("Mistral cleaned response:", text);
+  return text;
 }
 
 // Helper function to clean markdown formatting and parse JSON
