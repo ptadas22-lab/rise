@@ -44,14 +44,7 @@ async function callMistralAPI(prompt) {
   return text;
 }
 
-// Helper function to clean markdown formatting and parse JSON
-function cleanAndParseJSON(rawText) {
-  let cleaned = rawText.trim();
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/```$/i, '').trim();
-  }
-  return JSON.parse(cleaned);
-}
+
 
 // POST /generate
 app.post('/generate', async (req, res) => {
@@ -169,24 +162,9 @@ Output JSON structure template:
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
     const contentText = await callMistralAPI(promptText);
 
-    const cleanText = contentText
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-      .replace(/\\/g, '\\\\')
-      .trim();
-
-    let parsedData;
-    try {
-      parsedData = cleanAndParseJSON(cleanText);
-    } catch (parseErr) {
-      console.warn('Parsing sanitized JSON failed, trying raw text:', parseErr);
-      parsedData = cleanAndParseJSON(contentText);
-    }
-
-    if (!parsedData.plan || typeof parsedData.plan !== 'object') {
-      throw new Error('Response did not contain a "plan" object.');
-    }
-
-    res.json(parsedData);
+    // Send as plain text, not JSON - avoids all JSON parse errors
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(contentText);
   } catch (err) {
     console.error('Error in /plan:', err);
     res.status(500).json({ success: false, error: err.message });
