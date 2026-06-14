@@ -17,8 +17,8 @@ app.get('/', (req, res) => {
 
 // Helper function to query the Grok API with fallback
 async function callGrokAPI(messages, responseFormat, temperature = 0.7) {
-  const primaryModel = process.env.GROK_MODEL || 'grok-4';
-  const fallbackModel = 'grok-beta';
+  const primaryModel = process.env.GROK_MODEL || 'grok-4.3';
+  const fallbackModel = 'grok-4.3';
 
   if (!process.env.XAI_API_KEY) {
     throw new Error('XAI_API_KEY environment variable is not configured.');
