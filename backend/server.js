@@ -15,54 +15,52 @@ app.get('/', (req, res) => {
   res.send('RISE backend running');
 });
 
-// Helper function to query the Grok API with fallback
-async function callGrokAPI(messages, responseFormat, temperature = 0.7) {
-  const primaryModel = process.env.GROK_MODEL || 'grok-4.3';
-  const fallbackModel = 'grok-4.3';
-
-  if (!process.env.XAI_API_KEY) {
-    throw new Error('XAI_API_KEY environment variable is not configured.');
+// Helper function to query the Hugging Face Inference API
+async function callMistralAPI(promptText) {
+  if (!process.env.HUGGINGFACE_API_KEY) {
+    throw new Error('HUGGINGFACE_API_KEY environment variable is not configured.');
   }
 
-  try {
-    console.log(`Attempting to call Grok API with model: ${primaryModel}`);
-    return await makeAPIRequest(primaryModel, messages, responseFormat, temperature);
-  } catch (error) {
-    console.warn(`Primary model "${primaryModel}" failed. Error: ${error.message}`);
-    if (primaryModel !== fallbackModel) {
-      console.log(`Attempting fallback to model: ${fallbackModel}`);
-      return await makeAPIRequest(fallbackModel, messages, responseFormat, temperature);
+  console.log('Attempting to call Hugging Face Mistral-7B-Instruct-v0.3 API');
+  const response = await fetch(
+    "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.HUGGINGFACE_API_KEY}`
+      },
+      body: JSON.stringify({
+        inputs: promptText,
+        parameters: {
+          max_new_tokens: 1500,
+          temperature: 0.7,
+          return_full_text: false
+        }
+      })
     }
-    throw error;
-  }
-}
-
-async function makeAPIRequest(model, messages, responseFormat, temperature) {
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.XAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      response_format: responseFormat,
-      temperature
-    })
-  });
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`xAI API returned status ${response.status}: ${errorText}`);
+    throw new Error(`Hugging Face API returned status ${response.status}: ${errorText}`);
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error('Invalid response layout: choices[0].message.content was missing or empty.');
+  if (!Array.isArray(data) || !data[0] || !data[0].generated_text) {
+    throw new Error('Invalid response layout from Hugging Face API.');
   }
-  return content;
+
+  return data[0].generated_text;
+}
+
+// Helper function to clean markdown formatting and parse JSON
+function cleanAndParseJSON(rawText) {
+  let cleaned = rawText.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/```$/i, '').trim();
+  }
+  return JSON.parse(cleaned);
 }
 
 // POST /generate
@@ -114,16 +112,10 @@ Output JSON structure template:
   ]
 }`;
 
-    const contentText = await callGrokAPI(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      { type: 'json_object' },
-      0.7
-    );
+    const promptText = `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
+    const contentText = await callMistralAPI(promptText);
 
-    const parsedData = JSON.parse(contentText);
+    const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.ideas || !Array.isArray(parsedData.ideas)) {
       throw new Error('Response did not contain an "ideas" array.');
     }
@@ -185,16 +177,10 @@ Output JSON structure template:
   }
 }`;
 
-    const contentText = await callGrokAPI(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      { type: 'json_object' },
-      0.7
-    );
+    const promptText = `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
+    const contentText = await callMistralAPI(promptText);
 
-    const parsedData = JSON.parse(contentText);
+    const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.plan || typeof parsedData.plan !== 'object') {
       throw new Error('Response did not contain a "plan" object.');
     }
