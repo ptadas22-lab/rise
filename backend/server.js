@@ -52,25 +52,18 @@ app.post('/generate', async (req, res) => {
   try {
     const { prompt, budget, location, interest, count, ideaCount } = req.body;
 
-    if (prompt) {
-      const rawText = await callMistralAPI(prompt);
-      const cleanText = rawText
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-        .replace(/\\/g, '\\\\')
-        .trim();
-      return res.json({ success: true, result: cleanText });
-    }
+    let targetPrompt = prompt;
+    if (!targetPrompt) {
+      if (!budget || !location) {
+        return res.status(400).json({ error: 'Budget and Location are required.' });
+      }
 
-    if (!budget || !location) {
-      return res.status(400).json({ error: 'Budget and Location are required.' });
-    }
+      const countVal = parseInt(count || ideaCount) || 5;
 
-    const countVal = parseInt(count || ideaCount) || 5;
-
-    const systemPrompt = `You are an expert business consultant specialized in startup planning.
+      const systemPrompt = `You are an expert business consultant specialized in startup planning.
 You must return only a valid JSON object matching the requested schema. No conversational filler or markdown formatting outside the JSON block.`;
 
-    const userPrompt = `Generate exactly ${countVal} highly realistic and profitable business ideas suitable for a budget of "${budget}" in the city/location of "${location}".
+      const userPrompt = `Generate exactly ${countVal} highly realistic and profitable business ideas suitable for a budget of "${budget}" in the city/location of "${location}".
 ${interest ? `Focus on categories related to or matching: "${interest}".` : "Try to provide a diverse selection of matching offline or online business types."}
 
 Target Audience: students, side hustlers, small shop owners, and first-time entrepreneurs. Ensure the ideas represent realistic opportunities in India, showing prices/startup costs in INR (Indian Rupees - ₹).
@@ -104,28 +97,13 @@ Output JSON structure template:
     }
   ]
 }`;
-
-    const promptText = `${systemPrompt}\n\n${userPrompt}`;
-    const rawText = await callMistralAPI(promptText);
-
-    const cleanText = rawText
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-      .replace(/\\/g, '\\\\')
-      .trim();
-
-    let parsedData;
-    try {
-      parsedData = cleanAndParseJSON(cleanText);
-    } catch (parseErr) {
-      console.warn('Parsing sanitized JSON failed, trying raw text:', parseErr);
-      parsedData = cleanAndParseJSON(rawText);
+      targetPrompt = `${systemPrompt}\n\n${userPrompt}`;
     }
 
-    if (!parsedData.ideas || !Array.isArray(parsedData.ideas)) {
-      throw new Error('Response did not contain an "ideas" array.');
-    }
-
-    res.json(parsedData);
+    const rawText = await callMistralAPI(targetPrompt);
+    // Send as plain text, not JSON - avoids all JSON parse errors
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(rawText);
   } catch (err) {
     console.error('Error in /generate:', err);
     res.status(500).json({ success: false, error: err.message });
