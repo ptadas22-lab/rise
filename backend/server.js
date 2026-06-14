@@ -15,28 +15,27 @@ app.get('/', (req, res) => {
   res.send('RISE backend running');
 });
 
-async function callClaudeAPI(prompt) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured.");
+async function callMistralAPI(prompt) {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error("MISTRAL_API_KEY not configured.");
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01"
+      "Authorization": `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }]
+      model: "mistral-small-latest",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1000
     })
   });
 
   const data = await response.json();
-  console.log("Claude raw response:", JSON.stringify(data));
-  if (data.error) throw new Error(`Claude error: ${data.error.message}`);
-  return data.content[0].text;
+  console.log("Mistral raw response:", JSON.stringify(data));
+  if (data.error) throw new Error(`Mistral error: ${data.error.message}`);
+  return data.choices[0].message.content;
 }
 
 // Helper function to clean markdown formatting and parse JSON
@@ -98,7 +97,7 @@ Output JSON structure template:
 }`;
 
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
-    const contentText = await callClaudeAPI(promptText);
+    const contentText = await callMistralAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.ideas || !Array.isArray(parsedData.ideas)) {
@@ -163,7 +162,7 @@ Output JSON structure template:
 }`;
 
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
-    const contentText = await callClaudeAPI(promptText);
+    const contentText = await callMistralAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.plan || typeof parsedData.plan !== 'object') {
