@@ -15,27 +15,25 @@ app.get('/', (req, res) => {
   res.send('RISE backend running');
 });
 
-async function callOpenRouterAPI(prompt) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured.");
+async function callGeminiAPI(prompt) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured.");
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "openrouter/auto",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 1000
-    })
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    }
+  );
 
   const data = await response.json();
-  console.log("OpenRouter response:", JSON.stringify(data));
-  if (data.error) throw new Error(data.error.message);
-  return data.choices[0].message.content;
+  console.log("Gemini raw response:", JSON.stringify(data));
+  if (data.error) throw new Error(`Gemini error: ${data.error.message}`);
+  return data.candidates[0].content.parts[0].text;
 }
 
 // Helper function to clean markdown formatting and parse JSON
@@ -96,8 +94,8 @@ Output JSON structure template:
   ]
 }`;
 
-    const promptText = `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
-    const contentText = await callOpenRouterAPI(promptText);
+    const promptText = `${systemPrompt}\n\n${userPrompt}`;
+    const contentText = await callGeminiAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.ideas || !Array.isArray(parsedData.ideas)) {
@@ -161,8 +159,8 @@ Output JSON structure template:
   }
 }`;
 
-    const promptText = `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
-    const contentText = await callOpenRouterAPI(promptText);
+    const promptText = `${systemPrompt}\n\n${userPrompt}`;
+    const contentText = await callGeminiAPI(promptText);
 
     const parsedData = cleanAndParseJSON(contentText);
     if (!parsedData.plan || typeof parsedData.plan !== 'object') {
