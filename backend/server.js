@@ -16,39 +16,26 @@ app.get('/', (req, res) => {
 });
 
 async function callOpenRouterAPI(prompt) {
-  const models = [
-    "deepseek/deepseek-r1-0528:free",
-    "deepseek/deepseek-chat-v3-0324:free",
-    "qwen/qwen3-8b:free",
-    "mistralai/devstral-small:free"
-  ];
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured.");
 
-  for (const model of models) {
-    try {
-      console.log(`Trying OpenRouter model: ${model}`);
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 1000
-        })
-      });
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "openrouter/auto",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1000
+    })
+  });
 
-      const data = await response.json();
-      console.log(`Response from ${model}:`, JSON.stringify(data));
-      if (data.error?.code === 404 || data.error?.code === 429) continue;
-      if (data.error) throw new Error(data.error.message);
-      return data.choices[0].message.content;
-    } catch (err) {
-      console.warn(`Model ${model} failed:`, err.message);
-    }
-  }
-  throw new Error("All OpenRouter models failed");
+  const data = await response.json();
+  console.log("OpenRouter response:", JSON.stringify(data));
+  if (data.error) throw new Error(data.error.message);
+  return data.choices[0].message.content;
 }
 
 // Helper function to clean markdown formatting and parse JSON
