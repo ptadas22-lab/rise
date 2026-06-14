@@ -26,7 +26,7 @@ async function callOpenRouterAPI(prompt) {
       "Authorization": `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: "mistralai/mistral-7b-instruct:free",
+      model: "meta-llama/llama-3.2-3b-instruct:free",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 1000
     })
