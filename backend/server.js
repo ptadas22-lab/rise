@@ -62,6 +62,11 @@ app.post('/generate', async (req, res) => {
 
       const countVal = parseInt(count || ideaCount) || 5;
       const targetCurrency = currency || "USD ($)";
+      const getSymbol = (currStr) => {
+        const match = currStr.match(/\(([^)]+)\)/);
+        return match ? match[1] : "$";
+      };
+      const symbol = getSymbol(targetCurrency);
 
       const systemPrompt = `You are an expert business consultant specialized in startup planning.
 You must return only a valid JSON object matching the requested schema. No conversational filler or markdown formatting outside the JSON block.`;
@@ -74,8 +79,8 @@ Target Audience: students, side hustlers, small shop owners, and first-time entr
 You MUST return a JSON object with a single key "ideas" containing an array of business ideas. Each business idea must have exactly these keys:
 - "name": Catchy and localized business name
 - "category": Category of the business
-- "startupCost": Estimated startup cost (estimate breakdown with ${targetCurrency} symbol)
-- "monthlyProfit": Expected monthly profit (estimate with ${targetCurrency} symbol)
+- "startupCost": Estimated startup cost (estimate breakdown with ${symbol} symbol)
+- "monthlyProfit": Expected monthly profit (estimate with ${symbol} symbol)
 - "riskLevel": Must be exactly 'Low', 'Medium', or 'High'
 - "score": Feasibility score out of 100 (integer)
 - "whyItWorks": Explanation of why this works in "${location}"
@@ -87,8 +92,8 @@ Output JSON structure template:
     {
       "name": "example name",
       "category": "example category",
-      "startupCost": "₹10,000",
-      "monthlyProfit": "₹5,000",
+      "startupCost": "${symbol}10,000",
+      "monthlyProfit": "${symbol}5,000",
       "riskLevel": "Low",
       "score": 85,
       "whyItWorks": "Works because...",
@@ -122,6 +127,11 @@ app.post('/plan', async (req, res) => {
     const targetBudget = idea ? idea.startupCost : budget;
     const targetLocation = location || "Global";
     const targetCurrency = currency || "USD ($)";
+    const getSymbol = (currStr) => {
+      const match = currStr.match(/\(([^)]+)\)/);
+      return match ? match[1] : "$";
+    };
+    const symbol = getSymbol(targetCurrency);
 
     if (!targetIdeaName) {
       return res.status(400).json({ error: 'Idea Name is required.' });
@@ -136,13 +146,13 @@ The plan should be highly professional, detailed, and customized to the location
 You MUST return a JSON object with a single key "plan" containing the business plan object. The "plan" object must have exactly these keys:
 - "overview": Concise overview of the business concept, main value proposition, and why it will succeed.
 - "targetCustomers": Detailed profile of primary and secondary target customers and key demographics.
-- "startupCostBreakdown": A JSON array of strings, detailing items and estimated startup costs using local pricing (with ${targetCurrency} symbol where appropriate).
+- "startupCostBreakdown": A JSON array of strings, detailing items and estimated startup costs using local pricing (with ${symbol} symbol where appropriate).
 - "equipment": A JSON array of strings, representing an exhaustive list of required equipment, infrastructure, tools, materials, or initial resources.
 - "pricingStrategy": Clear, competitive pricing models, ticket size, or rate plans based on the budget.
 - "marketingStrategy": A single string summarizing the marketing strategies, tailored for budget "${budget}".
-- "monthlyRevenue": Realistic, granular projection of monthly revenue (with ${targetCurrency} symbol).
-- "monthlyExpenses": Granular list of monthly recurring expenses (rent, utilities, salaries, marketing, etc.) (with ${targetCurrency} symbol).
-- "expectedProfit": Expected net monthly profit (Revenue minus Expenses) structured clearly, showing margins (with ${targetCurrency} symbol).
+- "monthlyRevenue": Realistic, granular projection of monthly revenue (with ${symbol} symbol).
+- "monthlyExpenses": Granular list of monthly recurring expenses (rent, utilities, salaries, marketing, etc.) (with ${symbol} symbol).
+- "expectedProfit": Expected net monthly profit (Revenue minus Expenses) structured clearly, showing margins (with ${symbol} symbol).
 - "risks": A JSON array of strings, containing key business/operational risk factors, challenges, and brief mitigation actions.
 - "first30Days": A JSON array of strings, containing distinct, sequential steps to take in the first 30 days to launch.
 
@@ -151,13 +161,13 @@ Output JSON structure template:
   "plan": {
     "overview": "Overview...",
     "targetCustomers": "Target customers...",
-    "startupCostBreakdown": ["Item 1: ₹5,000", "Item 2: ₹2,000"],
+    "startupCostBreakdown": ["Item 1: ${symbol}5,000", "Item 2: ${symbol}2,000"],
     "equipment": ["Equipment 1", "Equipment 2"],
     "pricingStrategy": "Pricing details...",
     "marketingStrategy": "Marketing details...",
-    "monthlyRevenue": "₹50,000",
-    "monthlyExpenses": "₹30,000",
-    "expectedProfit": "₹20,000",
+    "monthlyRevenue": "${symbol}50,000",
+    "monthlyExpenses": "${symbol}30,000",
+    "expectedProfit": "${symbol}20,000",
     "risks": ["Risk 1: Description and mitigation", "Risk 2: Description and mitigation"],
     "first30Days": ["Step 1", "Step 2", "Step 3"]
   }
