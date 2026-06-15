@@ -52,7 +52,7 @@ async function callMistralAPI(prompt) {
 // POST /generate
 app.post('/generate', async (req, res) => {
   try {
-    const { prompt, budget, location, interest, count, ideaCount } = req.body;
+    const { prompt, budget, location, interest, count, ideaCount, currency } = req.body;
 
     let targetPrompt = prompt;
     if (!targetPrompt) {
@@ -61,6 +61,7 @@ app.post('/generate', async (req, res) => {
       }
 
       const countVal = parseInt(count || ideaCount) || 5;
+      const targetCurrency = currency || "USD ($)";
 
       const systemPrompt = `You are an expert business consultant specialized in startup planning.
 You must return only a valid JSON object matching the requested schema. No conversational filler or markdown formatting outside the JSON block.`;
@@ -68,13 +69,13 @@ You must return only a valid JSON object matching the requested schema. No conve
       const userPrompt = `Generate exactly ${countVal} highly realistic and profitable business ideas suitable for a budget of "${budget}" in the city/location of "${location}".
 ${interest ? `Focus on categories related to or matching: "${interest}".` : "Try to provide a diverse selection of matching offline or online business types."}
 
-Target Audience: students, side hustlers, small shop owners, and first-time entrepreneurs. Ensure the ideas represent realistic opportunities in India, showing prices/startup costs in INR (Indian Rupees - ₹).
+Target Audience: students, side hustlers, small shop owners, and first-time entrepreneurs. Ensure the ideas represent realistic opportunities in "${location}", showing prices/startup costs in the selected currency: ${targetCurrency}.
 
 You MUST return a JSON object with a single key "ideas" containing an array of business ideas. Each business idea must have exactly these keys:
 - "name": Catchy and localized business name
 - "category": Category of the business
-- "startupCost": Estimated startup cost (estimate breakdown with ₹ symbol)
-- "monthlyProfit": Expected monthly profit (estimate with ₹ symbol)
+- "startupCost": Estimated startup cost (estimate breakdown with ${targetCurrency} symbol)
+- "monthlyProfit": Expected monthly profit (estimate with ${targetCurrency} symbol)
 - "riskLevel": Must be exactly 'Low', 'Medium', or 'High'
 - "score": Feasibility score out of 100 (integer)
 - "whyItWorks": Explanation of why this works in "${location}"
@@ -114,12 +115,13 @@ Output JSON structure template:
 // POST /plan
 app.post('/plan', async (req, res) => {
   try {
-    const { idea, ideaName, category, budget, location } = req.body;
+    const { idea, ideaName, category, budget, location, currency } = req.body;
 
     const targetIdeaName = idea ? idea.name : ideaName;
     const targetCategory = idea ? idea.category : category;
     const targetBudget = idea ? idea.startupCost : budget;
-    const targetLocation = location || "India";
+    const targetLocation = location || "Global";
+    const targetCurrency = currency || "USD ($)";
 
     if (!targetIdeaName) {
       return res.status(400).json({ error: 'Idea Name is required.' });
@@ -130,17 +132,17 @@ You must return only a valid JSON object matching the requested schema. No conve
 
     const userPrompt = `Generate a fully comprehensive structural business execution plan for establishing a business called "${targetIdeaName}" (Category: "${targetCategory}") with budget constraints of "${targetBudget}" in "${targetLocation}".
 
-The plan should be highly professional, detailed, and customized to India. Return matching the required JSON schema.
+The plan should be highly professional, detailed, and customized to the location. Return matching the required JSON schema.
 You MUST return a JSON object with a single key "plan" containing the business plan object. The "plan" object must have exactly these keys:
 - "overview": Concise overview of the business concept, main value proposition, and why it will succeed.
 - "targetCustomers": Detailed profile of primary and secondary target customers and key demographics.
-- "startupCostBreakdown": A JSON array of strings, detailing items and estimated startup costs using local pricing (with ₹ symbol where appropriate).
+- "startupCostBreakdown": A JSON array of strings, detailing items and estimated startup costs using local pricing (with ${targetCurrency} symbol where appropriate).
 - "equipment": A JSON array of strings, representing an exhaustive list of required equipment, infrastructure, tools, materials, or initial resources.
 - "pricingStrategy": Clear, competitive pricing models, ticket size, or rate plans based on the budget.
 - "marketingStrategy": A single string summarizing the marketing strategies, tailored for budget "${budget}".
-- "monthlyRevenue": Realistic, granular projection of monthly revenue (with ₹ symbol).
-- "monthlyExpenses": Granular list of monthly recurring expenses (rent, utilities, salaries, marketing, etc.) (with ₹ symbol).
-- "expectedProfit": Expected net monthly profit (Revenue minus Expenses) structured clearly, showing margins (with ₹ symbol).
+- "monthlyRevenue": Realistic, granular projection of monthly revenue (with ${targetCurrency} symbol).
+- "monthlyExpenses": Granular list of monthly recurring expenses (rent, utilities, salaries, marketing, etc.) (with ${targetCurrency} symbol).
+- "expectedProfit": Expected net monthly profit (Revenue minus Expenses) structured clearly, showing margins (with ${targetCurrency} symbol).
 - "risks": A JSON array of strings, containing key business/operational risk factors, challenges, and brief mitigation actions.
 - "first30Days": A JSON array of strings, containing distinct, sequential steps to take in the first 30 days to launch.
 
