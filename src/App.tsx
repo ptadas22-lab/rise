@@ -13,12 +13,18 @@ import {
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://rise-6tca.onrender.com";
 
+const getCurrencySymbol = (currStr: string) => {
+  const match = currStr.match(/\(([^)]+)\)/);
+  return match ? match[1] : "$";
+};
+
 export default function App() {
   // Input states
   const [budget, setBudget] = useState("");
   const [location, setLocation] = useState("");
   const [interest, setInterest] = useState("");
   const [ideaCount, setIdeaCount] = useState("5");
+  const [currency, setCurrency] = useState("USD ($)");
 
   // App tabs & filters
   const [activeTab, setActiveTab] = useState<"generated" | "saved">("generated");
@@ -101,7 +107,8 @@ export default function App() {
           budget,
           location,
           interest,
-          count
+          count,
+          currency
         })
       });
 
@@ -109,7 +116,29 @@ export default function App() {
         throw new Error("Failed to generate ideas");
       }
 
-      const data = await response.json();
+      const text = await response.text(); // NOT response.json()
+
+      const cleanText = text
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .replace(/\\/g, '\\\\')
+        .trim();
+
+      let cleaned = cleanText;
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/```$/i, '').trim();
+      }
+
+      let data;
+      try {
+        data = JSON.parse(cleaned);
+      } catch (err) {
+        let rawCleaned = text.trim();
+        if (rawCleaned.startsWith('```')) {
+          rawCleaned = rawCleaned.replace(/^```(?:json)?\n?/i, '').replace(/```$/i, '').trim();
+        }
+        data = JSON.parse(rawCleaned);
+      }
+
       if (data.ideas && Array.isArray(data.ideas)) {
         // Hydrate ideas with distinct ids so copy / save work reliably
         const formattedIdeas: BusinessIdea[] = data.ideas.map((idea: any, idx: number) => ({
@@ -154,7 +183,7 @@ export default function App() {
       <div className="relative z-10 flex-1 flex flex-col">
         {/* Header Branding */}
         <header className="border-b border-white/10 bg-white/5 backdrop-blur-md sticky top-0 z-40 transition-shadow">
-          <div className="max-w-7xl mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between gap-4">
+          <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
               <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white shrink-0">
                 <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -179,13 +208,13 @@ export default function App() {
         <HeroSection />
 
         {/* Main Workspace Area */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-grow w-full pb-8 space-y-8 md:space-y-12">
+        <main className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 flex-grow w-full pb-8 space-y-8 md:space-y-12">
           
           {/* Main Panel grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            {/* Left: Input Form Card (Span 5) */}
-            <div id="form-panel" className="lg:col-span-5">
+            {/* Left: Input Form Card (Span 4) */}
+            <div id="form-panel" className="lg:col-span-4">
               <div className="relative rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-4 sm:p-6 md:p-8 shadow-2xl">
                 {/* Decorative left/top bar inside premium card */}
                 <div className="absolute top-4 left-0 bottom-4 w-[2px] bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500 rounded-r" />
@@ -196,14 +225,41 @@ export default function App() {
                 </div>
 
                 <form onSubmit={handleGenerateIdeas} className="space-y-5">
+                  {/* Currency Dropdown */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="currency-input" className="block text-[10px] font-extrabold uppercase tracking-widest text-blue-400 font-mono">
+                      Currency
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="currency-input"
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="w-full pl-4 pr-10 py-2.5 bg-black/40 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm text-white transition-all outline-none appearance-none cursor-pointer"
+                      >
+                        <option value="USD ($)" className="bg-[#050510]">USD ($)</option>
+                        <option value="EUR (€)" className="bg-[#050510]">EUR (€)</option>
+                        <option value="GBP (£)" className="bg-[#050510]">GBP (£)</option>
+                        <option value="INR (₹)" className="bg-[#050510]">INR (₹)</option>
+                        <option value="CAD (C$)" className="bg-[#050510]">CAD (C$)</option>
+                        <option value="AUD (A$)" className="bg-[#050510]">AUD (A$)</option>
+                        <option value="SGD (S$)" className="bg-[#050510]">SGD (S$)</option>
+                        <option value="AED (د.إ)" className="bg-[#050510]">AED (د.إ)</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                        <span className="text-xs">▼</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Budget input */}
                   <div className="space-y-1.5">
                     <label htmlFor="budget-input" className="block text-[10px] font-extrabold uppercase tracking-widest text-blue-400 font-mono">
-                      Budget (₹)
+                      Budget ({getCurrencySymbol(currency)})
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-400">
-                        <span className="font-bold text-sm">₹</span>
+                        <span className="font-bold text-sm">{getCurrencySymbol(currency)}</span>
                       </div>
                       <input
                         id="budget-input"
@@ -211,7 +267,7 @@ export default function App() {
                         required
                         value={budget}
                         onChange={(e) => setBudget(e.target.value)}
-                        placeholder="e.g. 50,000 or ₹1 Lakh"
+                        placeholder="e.g. 10,000 or 100k"
                         className="w-full pl-9 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm placeholder:text-gray-600 text-white transition-all outline-none"
                       />
                     </div>
@@ -235,12 +291,12 @@ export default function App() {
                         required
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
-                        placeholder="e.g. Pune, Mumbai, Bangalore"
+                        placeholder="e.g. London, New York, Tokyo"
                         className="w-full pl-10 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm placeholder:text-gray-600 text-white transition-all outline-none"
                       />
                     </div>
                     <p className="text-[10px] text-gray-500">
-                      Inputs the city demand profile for localized demographics.
+                      Inputs target location demand profile for localized demographics.
                     </p>
                   </div>
 
@@ -258,7 +314,7 @@ export default function App() {
                         type="text"
                         value={interest}
                         onChange={(e) => setInterest(e.target.value)}
-                        placeholder="e.g. Food, Tech, Retail, Organic Foods"
+                        placeholder="e.g. Coffee shop, E-commerce, Cleaning service"
                         className="w-full pl-10 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm placeholder:text-gray-600 text-white transition-all outline-none"
                       />
                     </div>
@@ -323,7 +379,7 @@ export default function App() {
                     <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0 mt-1"></div>
                     <div>
                       <span className="font-bold uppercase tracking-wider text-blue-400 mr-1 text-[10px]">Live Insight:</span>
-                      Tea stalls near IT parks and major colleges show 22% higher ROI across urban centers in India.
+                      Mobile coffee carts and micro-SaaS services show a 25% higher first-year survival rate globally.
                     </div>
                   </div>
                 </div>
@@ -331,7 +387,7 @@ export default function App() {
             </div>
 
             {/* Right: Tab Display / Idea List (Span 7) */}
-            <div id="results-panel" className="lg:col-span-7 space-y-6">
+            <div id="results-panel" className="lg:col-span-8 space-y-6">
                      {/* Dashboard Nav Tabs */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-white/10 pb-2">
                 <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
@@ -481,6 +537,7 @@ export default function App() {
         idea={activePlanIdea}
         budget={budget}
         location={location}
+        currency={currency}
       />
     </div>
   );

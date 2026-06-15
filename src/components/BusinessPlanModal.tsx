@@ -4,8 +4,9 @@ import {
   X, Loader2, Users, Megaphone, 
   TrendingUp, Sparkles, AlertCircle, CheckCircle2,
   Briefcase, Coins, Hammer, Tag, TrendingDown, Award, AlertTriangle, Calendar,
-  Bookmark, BookmarkCheck, Copy, Check
+  Bookmark, BookmarkCheck, Copy, Check, Download
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://rise-6tca.onrender.com";
 
@@ -15,6 +16,7 @@ interface BusinessPlanModalProps {
   idea: BusinessIdea | null;
   budget: string;
   location: string;
+  currency: string;
 }
 
 const PROGRESS_MESSAGES = [
@@ -31,6 +33,7 @@ export default function BusinessPlanModal({
   idea,
   budget,
   location,
+  currency,
 }: BusinessPlanModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +113,12 @@ export default function BusinessPlanModal({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          idea
+          idea,
+          ideaName: idea.name,
+          category: idea.category,
+          budget: budget || idea.startupCost,
+          location: location || "Global",
+          currency: currency
         })
       });
 
@@ -118,7 +126,29 @@ export default function BusinessPlanModal({
         throw new Error("Failed to generate plan");
       }
 
-      const resData = await response.json();
+      const text = await response.text();
+
+      const cleanText = text
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .replace(/\\/g, '\\\\')
+        .trim();
+
+      let cleaned = cleanText;
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/```$/i, '').trim();
+      }
+
+      let resData;
+      try {
+        resData = JSON.parse(cleaned);
+      } catch (err) {
+        let rawCleaned = text.trim();
+        if (rawCleaned.startsWith('```')) {
+          rawCleaned = rawCleaned.replace(/^```(?:json)?\n?/i, '').replace(/```$/i, '').trim();
+        }
+        resData = JSON.parse(rawCleaned);
+      }
+
       if (resData.plan) {
         setPlan(resData.plan);
       } else {
@@ -199,6 +229,277 @@ ${Array.isArray(plan.first30Days) ? plan.first30Days.map((step, idx) => `${idx +
       });
   };
 
+  const handleDownloadPDF = () => {
+    if (!plan || !idea) return;
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let y = 20;
+
+    const checkPageBreak = (height: number) => {
+      if (y + height > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+        drawHeaderFooter();
+      }
+    };
+
+    const drawHeaderFooter = () => {
+      // Top border/accent bar
+      doc.setFillColor(79, 70, 229); // Indigo #4F46E5
+      doc.rect(0, 0, pageWidth, 4, "F");
+
+      // Header text
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(156, 163, 175); // Slate 400
+      doc.text("RISE - AI BUSINESS PLANNER", margin, 10);
+      doc.text("CONFIDENTIAL", pageWidth - margin, 10, { align: "right" });
+      
+      // Bottom page numbering
+      doc.setFont("helvetica", "normal");
+      doc.text(`Page ${doc.internal.pages.length - 1}`, pageWidth - margin, pageHeight - 10, { align: "right" });
+    };
+
+    // Draw first page header
+    drawHeaderFooter();
+    y = 25;
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(31, 41, 55); // Gray 800
+    doc.text(idea.name.toUpperCase(), margin, y);
+    y += 10;
+
+    // Category and Location
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(79, 70, 229); // Indigo
+    doc.text(`Category: ${idea.category}  |  Location: ${location || "Global"}`, margin, y);
+    y += 12;
+
+    // Overview Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("1. Executive Summary", margin, y);
+    y += 6;
+
+    // Overview text
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81); // Gray 700
+    const overviewLines = doc.splitTextToSize(plan.overview, contentWidth);
+    doc.text(overviewLines, margin, y);
+    y += (overviewLines.length * 5) + 8;
+
+    // Financial Summary Panel
+    checkPageBreak(35);
+    doc.setFillColor(243, 244, 246); // Gray 100
+    doc.rect(margin, y, contentWidth, 24, "F");
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128); // Gray 500
+    doc.text("STARTUP BUDGET", margin + 10, y + 8);
+    doc.text("EST. REVENUE", margin + (contentWidth / 3) + 10, y + 8);
+    doc.text("EST. NET PROFIT", margin + (2 * contentWidth / 3) + 10, y + 8);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(17, 24, 39); // Gray 900
+    doc.text(budget || idea.startupCost, margin + 10, y + 16);
+    doc.text(plan.monthlyRevenue, margin + (contentWidth / 3) + 10, y + 16);
+    doc.text(plan.expectedProfit, margin + (2 * contentWidth / 3) + 10, y + 16);
+    y += 32;
+
+    // Target Customers
+    checkPageBreak(30);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("2. Target Audience & Customers", margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    const customerLines = doc.splitTextToSize(plan.targetCustomers, contentWidth);
+    doc.text(customerLines, margin, y);
+    y += (customerLines.length * 5) + 8;
+
+    // Startup Cost Breakdown
+    checkPageBreak(40);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("3. Initial Capital Expenditure", margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    
+    const breakdownArray = Array.isArray(plan.startupCostBreakdown) 
+      ? plan.startupCostBreakdown 
+      : typeof plan.startupCostBreakdown === 'string'
+        ? (plan.startupCostBreakdown as string).split("\n")
+        : [];
+        
+    breakdownArray.forEach((item) => {
+      checkPageBreak(6);
+      doc.text(`• ${item}`, margin + 5, y);
+      y += 5;
+    });
+    y += 4;
+
+    // Required Equipment
+    checkPageBreak(40);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("4. Required Equipment & Resources", margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    
+    const equipmentArray = Array.isArray(plan.equipment)
+      ? plan.equipment
+      : typeof plan.equipment === 'string'
+        ? (plan.equipment as string).split("\n")
+        : [];
+        
+    equipmentArray.forEach((item) => {
+      checkPageBreak(6);
+      doc.text(`• ${item}`, margin + 5, y);
+      y += 5;
+    });
+    y += 4;
+
+    // Pricing & Marketing
+    checkPageBreak(35);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("5. Operations & Marketing Strategy", margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55);
+    doc.text("Pricing Model:", margin, y);
+    y += 5;
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(55, 65, 81);
+    const pricingLines = doc.splitTextToSize(plan.pricingStrategy, contentWidth);
+    doc.text(pricingLines, margin, y);
+    y += (pricingLines.length * 5) + 5;
+
+    checkPageBreak(25);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(31, 41, 55);
+    doc.text("Marketing Strategy:", margin, y);
+    y += 5;
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(55, 65, 81);
+    
+    const marketingText = Array.isArray(plan.marketingStrategy)
+      ? plan.marketingStrategy.join("\n")
+      : plan.marketingStrategy;
+      
+    const marketingLines = doc.splitTextToSize(marketingText, contentWidth);
+    doc.text(marketingLines, margin, y);
+    y += (marketingLines.length * 5) + 8;
+
+    // Financial Estimates Details
+    checkPageBreak(35);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("6. Monthly Financial Estimates", margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    doc.text(`Monthly Projected Revenue: ${plan.monthlyRevenue}`, margin + 5, y);
+    y += 6;
+    
+    const expensesText = Array.isArray(plan.monthlyExpenses)
+      ? plan.monthlyExpenses.join(", ")
+      : plan.monthlyExpenses;
+    doc.text(`Monthly Operating Expenses: ${expensesText}`, margin + 5, y);
+    y += 6;
+    doc.text(`Net Monthly Profit: ${plan.expectedProfit}`, margin + 5, y);
+    y += 10;
+
+    // Risks & Mitigations
+    checkPageBreak(40);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("7. Risk Assessment & Mitigations", margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    
+    const risksArray = Array.isArray(plan.risks)
+      ? plan.risks
+      : typeof plan.risks === 'string'
+        ? (plan.risks as string).split("\n")
+        : [];
+        
+    risksArray.forEach((risk) => {
+      checkPageBreak(8);
+      const riskLines = doc.splitTextToSize(`• ${risk}`, contentWidth - 5);
+      doc.text(riskLines, margin + 5, y);
+      y += (riskLines.length * 5);
+    });
+    y += 4;
+
+    // First 30 Days
+    checkPageBreak(40);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55);
+    doc.text("8. First 30 Days Action Plan", margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    
+    const stepsArray = Array.isArray(plan.first30Days)
+      ? plan.first30Days
+      : typeof plan.first30Days === 'string'
+        ? (plan.first30Days as string).split("\n")
+        : [];
+        
+    stepsArray.forEach((step, idx) => {
+      checkPageBreak(8);
+      const stepLines = doc.splitTextToSize(`${idx + 1}. ${step}`, contentWidth - 5);
+      doc.text(stepLines, margin + 5, y);
+      y += (stepLines.length * 5) + 1;
+    });
+
+    doc.save(`${idea.name.toLowerCase().replace(/\s+/g, "_")}_business_plan.pdf`);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -222,15 +523,27 @@ ${Array.isArray(plan.first30Days) ? plan.first30Days.map((step, idx) => `${idx +
               {idea ? idea.name : "Business Plan"}
             </h3>
             <p className="text-[10px] sm:text-[11px] text-gray-400 mt-1 font-mono leading-tight">
-              Calibrated for budget &apos;{budget || idea?.startupCost}&apos; • city &apos;{location || "India"}&apos;
+              Calibrated for budget &apos;{budget || idea?.startupCost}&apos; • location &apos;{location || "Global"}&apos;
             </p>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/15 hover:text-white border border-white/10 transition-colors cursor-pointer shrink-0"
-          >
-            <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {!loading && !error && plan && (
+              <button
+                onClick={handleDownloadPDF}
+                title="Download PDF Plan"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 font-bold text-[10px] sm:text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[36px] sm:min-h-[40px]"
+              >
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                <span className="hidden sm:inline">Download PDF</span>
+              </button>
+            )}
+            <button 
+              onClick={onClose}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 hover:text-white border border-white/10 transition-colors cursor-pointer shrink-0"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}

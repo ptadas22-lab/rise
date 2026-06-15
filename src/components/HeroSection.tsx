@@ -2,7 +2,7 @@ import { Sparkles, TrendingUp } from "lucide-react";
 
 export default function HeroSection() {
   return (
-    <div className="relative text-center py-10 md:py-16 max-w-4xl mx-auto px-4 overflow-hidden">
+    <div className="relative text-center py-12 md:py-20 max-w-5xl mx-auto px-4 overflow-hidden">
       {/* Decorative gradient background blur */}
       <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-12 left-1/3 -translate-x-1/2 w-60 h-60 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -14,7 +14,7 @@ export default function HeroSection() {
       </div>
 
       {/* Main Title */}
-      <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black leading-[1.05] sm:leading-[0.95] tracking-tight text-white uppercase mb-3">
+      <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.05] sm:leading-[0.95] tracking-tight text-white uppercase mb-4">
         Turn Your{" "}
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500">
           Ideas Into
@@ -23,12 +23,12 @@ export default function HeroSection() {
       </h1>
 
       {/* Brand Statement */}
-      <div className="text-blue-400 text-sm md:text-base font-extrabold uppercase tracking-widest mb-6 select-none bg-blue-500/10 inline-block px-3 py-1 rounded-md border border-blue-500/15">
-        From Idea to Income.
+      <div className="text-blue-400 text-xs sm:text-sm md:text-base font-extrabold uppercase tracking-widest mb-6 select-none bg-blue-500/10 inline-block px-3.5 py-1.5 rounded-md border border-blue-500/15">
+        AI Business Ideas for Small Businesses Worldwide.
       </div>
 
       {/* Subtitle */}
-      <p className="text-sm md:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-semibold">
+      <p className="text-sm md:text-base text-slate-400 max-w-3xl mx-auto leading-relaxed font-semibold">
         Discover realistic business opportunities based on your budget, location, and interests. Get startup costs, profit potential, risk analysis, and actionable first steps.
       </p>
 
