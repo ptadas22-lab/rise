@@ -30,7 +30,7 @@ async function callMistralAPI(prompt) {
     body: JSON.stringify({
       model: "mistral-small-latest",
       messages: [{ role: "user", content: cleanPrompt }],
-      max_tokens: 1000
+      max_tokens: 4000
     })
   });
 
@@ -40,8 +40,11 @@ async function callMistralAPI(prompt) {
   // Strip markdown code blocks
   text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
-  console.log("Mistral cleaned response:", text);
-  return text;
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No valid JSON found in AI response");
+  
+  console.log("Mistral cleaned response:", jsonMatch[0]);
+  return jsonMatch[0];
 }
 
 
@@ -100,9 +103,8 @@ Output JSON structure template:
     }
 
     const rawText = await callMistralAPI(targetPrompt);
-    // Send as plain text, not JSON - avoids all JSON parse errors
-    res.setHeader('Content-Type', 'text/plain');
-    res.send(rawText);
+    const parsed = JSON.parse(rawText);
+    res.json(parsed);
   } catch (err) {
     console.error('Error in /generate:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -161,10 +163,8 @@ Output JSON structure template:
 
     const promptText = `${systemPrompt}\n\n${userPrompt}`;
     const contentText = await callMistralAPI(promptText);
-
-    // Send as plain text, not JSON - avoids all JSON parse errors
-    res.setHeader('Content-Type', 'text/plain');
-    res.send(contentText);
+    const parsed = JSON.parse(contentText);
+    res.json(parsed);
   } catch (err) {
     console.error('Error in /plan:', err);
     res.status(500).json({ success: false, error: err.message });
